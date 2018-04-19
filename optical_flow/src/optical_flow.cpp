@@ -1,6 +1,6 @@
 /*
 Name:        optical_flow
-Purpose:     ROS Package with specific ENGIE image processing functions
+Purpose:     get visual odometry from camera pointing down
 Author:      Matthieu MAGNON
 Created:     April 2018
 
