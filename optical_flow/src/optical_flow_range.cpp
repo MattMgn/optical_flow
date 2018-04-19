@@ -1,6 +1,6 @@
 /*
 Name:        optical_flow
-Purpose:     get visual deplacement gradient from camera 
+Purpose:     get visual odometrey from camera pointing down and rangefinder values
 Author:      Matthieu MAGNON
 Created:     April 2018
 
@@ -164,7 +164,7 @@ int main(int argc, char *argv[]){
     ROS_INFO("Starting Optical Flow Node");
 
     /* node initialisation */
-    ros::init(argc, argv, "optical_flow");
+    ros::init(argc, argv, "optical_flow_range");
 
     OpticalFlow flow;
 

@@ -125,6 +125,12 @@ include_directories(
 add_executable(optical_flow src/optical_flow.cpp)
 target_link_libraries(optical_flow ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
+add_executable(optical_flow_range src/optical_flow_range.cpp)
+target_link_libraries(optical_flow_range ${catkin_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(fake_ultrasound src/fake_ultrasound.cpp)
+target_link_libraries(fake_ultrasound ${catkin_LIBRARIES})
+
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/my_pcl_tutorial.cpp
