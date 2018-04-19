@@ -1,7 +1,7 @@
 # optical_flow
-Optical flow to provide odometry from raspberry camera fixed to quadcopter
+This ROS package aimed to provide odometry from raspberry camera mounted downward on quadcopter
 
-Optical flow is computed from raw image if  only compressed image is published from camera, use republish from image_transport package as shown in optical_flow.launch
+Optical flow is computed from raw image if only compressed image is published from camera, use republish from image_transport package as shown in 'optical_flow_rosbag.launch'
 
 TODO  :
 add rangefinder information for depth estimation and velocity calculation
