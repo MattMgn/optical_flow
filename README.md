@@ -5,4 +5,4 @@ Optical flow is computed from raw image if only compressed image is published fr
 
 ### TODO  :
 * add rangefinder information for depth estimation and velocity calculation to provide odometry
-* add Pose estimator with Kalman Filter
+* add Kalman Filter for Pose estimation
