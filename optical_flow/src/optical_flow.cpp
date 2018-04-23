@@ -31,7 +31,7 @@ static const std::string OPENCV_WINDOW = "Image window";
 int init = 1;
 
 // PARAMETERS
-int DEBUG = 0;
+int DEBUG = 1;
 
 class OpticalFlow
 {

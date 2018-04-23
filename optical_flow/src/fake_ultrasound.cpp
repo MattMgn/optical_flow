@@ -43,8 +43,8 @@ int main(int argc, char *argv[]){
 
 
     while (ros::ok()) {
-    	int sigma = 100;
-    	float rg = ( rand() % sigma + 1000 - sigma/2 )/1000; // distance en m
+    	int sigma = 100.000;
+    	float rg = ( rand() % sigma + 1000.000 - sigma/2 )/1000.000; // distance en m
     	us.range = rg;
     	us.header.stamp = ros::Time::now();
     	pub.publish(us);

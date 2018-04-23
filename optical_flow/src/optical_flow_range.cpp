@@ -23,6 +23,14 @@ List of methodes:
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include "geometry_msgs/Twist.h"
+#include "sensor_msgs/Range.h"
+#include <Eigen/Dense>
+#include <Eigen/Core>
+#include <math.h> 
+#define DELTA_T 0.1
+#define N 4 // dim du vecteur X
+#define M 2 // dim du vecteur Y
+#define SAVE 1
 
 using namespace std;
 
@@ -31,7 +39,10 @@ static const std::string OPENCV_WINDOW = "Image window";
 int init = 1;
 
 // PARAMETERS
-int DEBUG = 0;
+int DEBUG = 1;
+
+
+
 
 class OpticalFlow
 {
@@ -39,14 +50,106 @@ class OpticalFlow
 public:
 
     // CONSTRUCTEUR
+    /*
+    Eigen::MatrixXd F;
+    Eigen::MatrixXd C;
+    Eigen::MatrixXd P_k_k;
+    Eigen::MatrixXd P_kp_k;
+    Eigen::MatrixXd R;
+    Eigen::MatrixXd Q;
+    Eigen::MatrixXd K;
+    Eigen::MatrixXd x_kp_k;        
+    Eigen::MatrixXd x_k_k;
+    Eigen::MatrixXd Y;
+    */
 
-    OpticalFlow(){
 
-        sub = nh.subscribe("camera/raw_image", 10, &OpticalFlow::imageCallback, this);
-        pub = nh.advertise<geometry_msgs::Twist>("optical_flow/velocity",10);
+    OpticalFlow() : F(N,N), C(M,N), P_k_k(N,N), P_kp_k(N,N), R(M,M), Q(N,N), K(N,M), x_kp_k(N,1), x_k_k(N,1), Y(M,1){
+
+        subCam = nh.subscribe("camera/raw_image", 10, &OpticalFlow::imageCallback, this);
+        subRg = nh.subscribe("fake_ultrasound", 10, &OpticalFlow::rangeCallback, this);
+        pub = nh.advertise<geometry_msgs::Twist>("optical_flow/visual_velocity",10);
         ros::NodeHandle nh_private("~");
 
-    }
+        fp = fopen("/home/matt/rosbag/camera_pose_estimate.txt","a+"); // rw + creation de fichier
+
+
+        /* ********* KALMAN FILTER INITIALISATION ********* */
+        // Vecteur d'état : X = [x y z theta vx vy vz vtheta]
+        // matrices d'état
+        //Eigen::MatrixXd F(4,4);
+        F << 1,0,DELTA_T,0,
+             0,1,0,DELTA_T,
+             0,0,1,0,
+             0,0,0,1;
+        cout<<"\n F : "<<endl;
+        cout<<F<<endl;
+
+        // Vecteur de mesure : Y = [z theta vx vy]
+        //Eigen::MatrixXd C(2,4);
+        C << 1,0,0,0,
+             0,1,0,0;
+        cout<<"\n C : "<<endl;
+        cout<<C<<endl;
+
+        // matrice de covariance etape de corresction
+        //Eigen::MatrixXd P_k_k(4,4);
+        P_k_k << 100,0,  0,  0,
+                   0,  100,0,  0,
+                   0,  0,  100,0,
+                   0,  0,  0,  100;
+        cout<<"\n P_0_0 : "<<endl;
+        cout<<P_k_k<<endl;
+
+        // matrice de covariance etape de prediction
+        //Eigen::MatrixXd P_kp_k(4,4);
+
+        // matrice de variance du bruit de mesure // Grand si Pas confiance
+        //Eigen::MatrixXd R(2,2);
+        R << 5, 0,
+              0, 5;
+        cout<<"\n R : "<<endl;
+        cout<<R<<endl;
+
+        //matrice de bruit de processus
+        //Eigen::MatrixXd Q(4,4);
+        Q << 5,  0,  0,  0,
+             0,  5,  0,  0,
+             0,   0, 5,  0,
+             0,   0,  0, 5;
+        cout<<"\n Q : "<<endl;
+        cout<<Q<<endl;
+
+        // Coefficient de correction K
+        //Eigen::MatrixXd K(4,2);
+
+        //vecteur d'état etape de prediction
+        //igen::MatrixXd x_kp_k(4,1);
+
+        //vecteur d'état etape de correction [x,y,vx,vy]'
+        //Eigen::MatrixXd x_k_k(4,1);
+        x_k_k << 0, 250, 30, 30;
+        cout<<"\n x_0_0 : "<<endl;
+        cout<<x_k_k<<endl;
+
+        //Mesure
+        Y << 0.0, 0.0;
+
+        cout<<"\n Y : "<<endl;
+        //Y.resize(3,1);
+        cout<<Y<<endl;       
+        
+
+        //matrice identité
+        Eigen::MatrixXd I(4,4);
+        I << 1,  0, 0,  0,
+             0,  1, 0,  0,
+             0,  0, 1,  0,
+             0,  0, 0,  1;
+        cout<<"\n I : "<<endl;
+        cout<<I<<endl;
+
+        }
 
     // METHODES
 
@@ -70,11 +173,20 @@ public:
             img_cur.copyTo(img_prev);
         }
 
-        /*Affichage
+        //Affichage
         cv::imshow("Image Precedente", img_prev);
-        cv::imshow("Image Courante", img_cur);
+        //cv::imshow("Image Courante", img_cur);
         cv::waitKey(1);
-        */
+        
+
+        computeLucasKanade(img_prev, img_cur);
+
+        k++;
+
+    }
+
+
+    void computeLucasKanade(cv::Mat img_prev , cv::Mat img_cur){
 
         // Corner Detector : detecte des coins
         if (DEBUG) { cout<<"Detect corner"<<endl;}
@@ -122,12 +234,15 @@ public:
 
         if (DEBUG) { cout<<"Matrice de Transformation "<<endl; cout<<T<<endl;}
         
+        // Calcul de l'angle theta
+        double theta = acos(T.at<double>(1,0)/T.at<double>(0,0)) - 3.1416/2.0000;
+        if (DEBUG) { cout<<"Theta  =  "<<theta<<endl; }
+
 
         // Publie la vitesse de defilement
         geometry_msgs::Twist twist;
         if (DEBUG) { cout<<"Vx =  "<<T.at<double>(0,2)<<endl; }
         if (DEBUG) { cout<<"Vy =  "<<T.at<double>(1,2)<<endl; }
-
 
         twist.linear.x = T.at<double>(0,2);
         twist.linear.y = T.at<double>(1,2);
@@ -135,11 +250,39 @@ public:
         pub.publish(twist);
 
 
+        // Utilisation de Range
+        cout<<"raw_range : "<<raw_range.range <<endl;
+        //cout<<"F : "<<F<<endl;
+
+
+        // Mets a jour l'estimateur
+        Y(0,0) = raw_range.range;
+        Y(1,0) = theta;
+        //Y(2,0) = T.at<double>(0,2);
+        //Y(3,0) = T.at<double>(1,2);        
+
+        update_kalman(Y);
+
+        if (SAVE) { fprintf(fp , " \n %f , %f , %f , %f", twist.linear.x, twist.linear.y, raw_range.range, theta );}
+        
+
+
         // Placer la cur dans la prev
         T.copyTo(last_T);
         img_cur.copyTo(img_prev);
-        k++;
 
+
+    }
+
+    void update_kalman( Eigen::MatrixXd Y ) {
+        if (DEBUG) { cout<<"# Kalman | Y \n "<<Y<<endl; }
+
+
+    }
+
+
+    void rangeCallback(const sensor_msgs::Range & msg){
+        raw_range = msg;
     }
 
     // ATTRIBUTS
@@ -147,12 +290,26 @@ public:
 protected:    
 
     ros::NodeHandle nh;
-    
-    ros::Subscriber sub;
+    ros::Subscriber subCam;
+    ros::Subscriber subRg;
     ros::Publisher pub;
     cv::Mat img_prev;
     cv::Mat T;
     cv::Mat last_T;
+    sensor_msgs::Range raw_range;
+
+    Eigen::MatrixXd F;
+    Eigen::MatrixXd C;
+    Eigen::MatrixXd P_k_k;
+    Eigen::MatrixXd P_kp_k;
+    Eigen::MatrixXd R;
+    Eigen::MatrixXd Q;
+    Eigen::MatrixXd K;
+    Eigen::MatrixXd x_kp_k;        
+    Eigen::MatrixXd x_k_k;
+    Eigen::MatrixXd Y;
+
+    FILE * fp;
 
 
 };
@@ -162,6 +319,9 @@ protected:
 int main(int argc, char *argv[]){  
     
     ROS_INFO("Starting Optical Flow Node");
+
+/* Record Pose */
+
 
     /* node initialisation */
     ros::init(argc, argv, "optical_flow_range");
