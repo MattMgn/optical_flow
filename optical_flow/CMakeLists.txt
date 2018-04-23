@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV)
+find_package(Eigen3 REQUIRED)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -120,6 +121,7 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
 )
 
 add_executable(optical_flow src/optical_flow.cpp)
@@ -130,6 +132,9 @@ target_link_libraries(optical_flow_range ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable(fake_ultrasound src/fake_ultrasound.cpp)
 target_link_libraries(fake_ultrasound ${catkin_LIBRARIES})
+
+add_executable(optical_odometry src/optical_odometry.cpp)
+target_link_libraries(optical_odometry ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
